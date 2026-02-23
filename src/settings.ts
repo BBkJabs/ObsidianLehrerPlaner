@@ -3,6 +3,7 @@ import LehrerplanerPlugin from './main';
 
 export class LehrerplanerSettingTab extends PluginSettingTab {
     plugin: LehrerplanerPlugin;
+    activeTab: string = 'Allgemein';
 
     constructor(app: App, plugin: LehrerplanerPlugin) {
         super(app, plugin);
@@ -16,96 +17,115 @@ export class LehrerplanerSettingTab extends PluginSettingTab {
 
         containerEl.createEl('h2', { text: 'Lehrerplaner Einstellungen' });
 
-        new Setting(containerEl)
-            .setName('Daten-Datei')
-            .setDesc('Pfad zur JSON-Datei, in der alle Planungsdaten gespeichert werden.')
-            .addText(text => text
-                .setPlaceholder('lehrerplaner-data.json')
-                .setValue(this.plugin.settings.dataFilePath)
-                .onChange(async (value) => {
-                    this.plugin.settings.dataFilePath = value;
-                    await this.plugin.saveSettings();
-                }));
+        // Tab Navigation
+        const tabBar = containerEl.createDiv('lehrerplaner-tab-bar');
+        tabBar.style.display = 'flex';
+        tabBar.style.borderBottom = '1px solid var(--background-modifier-border)';
+        tabBar.style.marginBottom = '20px';
 
-        containerEl.createEl('h3', { text: 'Schuljahre' });
-        
-        const schuljahreContainer = containerEl.createDiv('schuljahre-container');
-        this.renderSchuljahre(schuljahreContainer);
+        const tabs = ['Allgemein', 'Schuljahre', 'Ferien', 'Feiertage', 'Bildungsgänge'];
 
-        new Setting(containerEl)
-            .addButton(button => button
-                .setButtonText('Neues Schuljahr hinzufügen')
-                .onClick(async () => {
-                    const neuesSchuljahr = {
-                        id: this.generateId(),
-                        name: 'Neues Schuljahr',
-                        startDatum: new Date().toISOString().split('T')[0],
-                        endDatum: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
-                        halbjahresWechsel: new Date(new Date().setMonth(new Date().getMonth() + 6)).toISOString().split('T')[0]
-                    };
-                    this.plugin.data.schuljahre.push(neuesSchuljahr);
-                    await this.plugin.storageService.saveData(this.plugin.data);
-                    this.renderSchuljahre(schuljahreContainer);
-                }));
+        tabs.forEach(tab => {
+            const tabEl = tabBar.createDiv('lehrerplaner-tab');
+            tabEl.setText(tab);
+            tabEl.style.padding = '10px 20px';
+            tabEl.style.cursor = 'pointer';
+            tabEl.style.borderBottom = this.activeTab === tab ? '2px solid var(--interactive-accent)' : 'none';
+            tabEl.style.color = this.activeTab === tab ? 'var(--text-normal)' : 'var(--text-muted)';
+            tabEl.style.fontWeight = this.activeTab === tab ? 'bold' : 'normal';
 
-        containerEl.createEl('h3', { text: 'Ferien' });
-        
-        const ferienContainer = containerEl.createDiv('ferien-container');
-        this.renderFerien(ferienContainer);
+            tabEl.addEventListener('click', () => {
+                this.activeTab = tab;
+                this.display(); // Re-render with new active tab
+            });
+        });
 
-        new Setting(containerEl)
-            .addButton(button => button
-                .setButtonText('Neue Ferien hinzufügen')
-                .onClick(async () => {
-                    const neueFerien = {
-                        id: this.generateId(),
-                        name: 'Neue Ferien',
-                        startDatum: new Date().toISOString().split('T')[0],
-                        endDatum: new Date(new Date().setDate(new Date().getDate() + 14)).toISOString().split('T')[0]
-                    };
-                    this.plugin.data.ferien.push(neueFerien);
-                    await this.plugin.storageService.saveData(this.plugin.data);
-                    this.renderFerien(ferienContainer);
-                }));
+        const contentContainer = containerEl.createDiv('lehrerplaner-tab-content');
 
-        containerEl.createEl('h3', { text: 'Feiertage' });
-        
-        const feiertageContainer = containerEl.createDiv('feiertage-container');
-        this.renderFeiertage(feiertageContainer);
+        if (this.activeTab === 'Allgemein') {
+            new Setting(contentContainer)
+                .setName('Daten-Datei')
+                .setDesc('Pfad zur JSON-Datei, in der alle Planungsdaten gespeichert werden.')
+                .addText(text => text
+                    .setPlaceholder('lehrerplaner-data.json')
+                    .setValue(this.plugin.settings.dataFilePath)
+                    .onChange(async (value) => {
+                        this.plugin.settings.dataFilePath = value;
+                        await this.plugin.saveSettings();
+                    }));
+        } else if (this.activeTab === 'Schuljahre') {
+            const schuljahreContainer = contentContainer.createDiv('schuljahre-container');
+            this.renderSchuljahre(schuljahreContainer);
 
-        new Setting(containerEl)
-            .addButton(button => button
-                .setButtonText('Neuen Feiertag hinzufügen')
-                .onClick(async () => {
-                    const neuerFeiertag = {
-                        id: this.generateId(),
-                        name: 'Neuer Feiertag',
-                        datum: new Date().toISOString().split('T')[0]
-                    };
-                    this.plugin.data.feiertage.push(neuerFeiertag);
-                    await this.plugin.storageService.saveData(this.plugin.data);
-                    this.renderFeiertage(feiertageContainer);
-                }));
+            new Setting(contentContainer)
+                .addButton(button => button
+                    .setButtonText('Neues Schuljahr hinzufügen')
+                    .onClick(async () => {
+                        const neuesSchuljahr = {
+                            id: this.generateId(),
+                            name: 'Neues Schuljahr',
+                            startDatum: new Date().toISOString().split('T')[0],
+                            endDatum: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0],
+                            halbjahresWechsel: new Date(new Date().setMonth(new Date().getMonth() + 6)).toISOString().split('T')[0]
+                        };
+                        this.plugin.data.schuljahre.push(neuesSchuljahr);
+                        await this.plugin.storageService.saveData(this.plugin.data);
+                        this.renderSchuljahre(schuljahreContainer);
+                    }));
+        } else if (this.activeTab === 'Ferien') {
+            const ferienContainer = contentContainer.createDiv('ferien-container');
+            this.renderFerien(ferienContainer);
 
-        containerEl.createEl('h3', { text: 'Bildungsgänge' });
-        
-        const bildungsgaengeContainer = containerEl.createDiv('bildungsgaenge-container');
-        this.renderBildungsgaenge(bildungsgaengeContainer);
+            new Setting(contentContainer)
+                .addButton(button => button
+                    .setButtonText('Neue Ferien hinzufügen')
+                    .onClick(async () => {
+                        const neueFerien = {
+                            id: this.generateId(),
+                            name: 'Neue Ferien',
+                            startDatum: new Date().toISOString().split('T')[0],
+                            endDatum: new Date(new Date().setDate(new Date().getDate() + 14)).toISOString().split('T')[0]
+                        };
+                        this.plugin.data.ferien.push(neueFerien);
+                        await this.plugin.storageService.saveData(this.plugin.data);
+                        this.renderFerien(ferienContainer);
+                    }));
+        } else if (this.activeTab === 'Feiertage') {
+            const feiertageContainer = contentContainer.createDiv('feiertage-container');
+            this.renderFeiertage(feiertageContainer);
 
-        new Setting(containerEl)
-            .addButton(button => button
-                .setButtonText('Neuen Bildungsgang hinzufügen')
-                .onClick(async () => {
-                    const neuerBildungsgang = {
-                        id: this.generateId(),
-                        langName: 'Neuer Bildungsgang',
-                        kurzName: 'neu',
-                        farbe: '#cccccc'
-                    };
-                    this.plugin.data.bildungsgaenge.push(neuerBildungsgang);
-                    await this.plugin.storageService.saveData(this.plugin.data);
-                    this.renderBildungsgaenge(bildungsgaengeContainer);
-                }));
+            new Setting(contentContainer)
+                .addButton(button => button
+                    .setButtonText('Neuen Feiertag hinzufügen')
+                    .onClick(async () => {
+                        const neuerFeiertag = {
+                            id: this.generateId(),
+                            name: 'Neuer Feiertag',
+                            datum: new Date().toISOString().split('T')[0]
+                        };
+                        this.plugin.data.feiertage.push(neuerFeiertag);
+                        await this.plugin.storageService.saveData(this.plugin.data);
+                        this.renderFeiertage(feiertageContainer);
+                    }));
+        } else if (this.activeTab === 'Bildungsgänge') {
+            const bildungsgaengeContainer = contentContainer.createDiv('bildungsgaenge-container');
+            this.renderBildungsgaenge(bildungsgaengeContainer);
+
+            new Setting(contentContainer)
+                .addButton(button => button
+                    .setButtonText('Neuen Bildungsgang hinzufügen')
+                    .onClick(async () => {
+                        const neuerBildungsgang = {
+                            id: this.generateId(),
+                            langName: 'Neuer Bildungsgang',
+                            kurzName: 'neu',
+                            farbe: '#cccccc'
+                        };
+                        this.plugin.data.bildungsgaenge.push(neuerBildungsgang);
+                        await this.plugin.storageService.saveData(this.plugin.data);
+                        this.renderBildungsgaenge(bildungsgaengeContainer);
+                    }));
+        }
     }
 
     private renderSchuljahre(container: HTMLElement) {
