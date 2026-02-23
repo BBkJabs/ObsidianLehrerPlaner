@@ -1,5 +1,7 @@
 import { ItemView, WorkspaceLeaf, Setting } from 'obsidian';
 import LehrerplanerPlugin from './main';
+import { KalenderService } from './kalender';
+import { UnterrichtsService } from './unterricht';
 
 export const VIEW_TYPE_LEHRERPLANER = 'lehrerplaner-view';
 
@@ -579,12 +581,39 @@ export class LehrerplanerView extends ItemView {
 
         container.createEl('h4', { text: `Planung für ${klasse.name} in ${fach.kurzName} (${schuljahr.name})` });
 
-        // 1. Berechne mögliche Stunden (vereinfacht: 2 Stunden pro Schulwoche als Dummy-Annahme, 
-        // da der echte Stundenplan noch nicht implementiert ist)
-        // In einer echten Implementierung würde hier der KalenderService und UnterrichtsService genutzt werden
-        const wochen = 40; // Ca. 40 Schulwochen pro Jahr
-        const stundenProWoche = 2; // Dummy-Wert
-        const moeglicheStunden = wochen * stundenProWoche;
+        // 1. Berechne mögliche Stunden anhand des echten Stundenplans und Kalenders
+        const kalenderService = new KalenderService(
+            this.plugin.data.schuljahre,
+            this.plugin.data.ferien,
+            this.plugin.data.feiertage
+        );
+        
+        const unterrichtsService = new UnterrichtsService(
+            this.plugin.data.stundenplaene,
+            this.plugin.data.unterrichtseinheiten,
+            this.plugin.data.geplanteEinheiten,
+            kalenderService
+        );
+
+        let moeglicheStunden = 0;
+        const startDatum = new Date(schuljahr.startDatum);
+        const endDatum = new Date(schuljahr.endDatum);
+        
+        // Iteriere über jeden Tag des Schuljahres
+        for (let d = new Date(startDatum); d <= endDatum; d.setDate(d.getDate() + 1)) {
+            // Überspringe Wochenenden, Ferien und Feiertage
+            if (!kalenderService.istSchultag(d)) continue;
+            
+            // Hole die Stundenplaneinträge für diesen Tag, diese Klasse und dieses Fach
+            const eintraege = unterrichtsService.getUnterrichtsstundenFuerKlasseUndFach(
+                klasse.id,
+                fach.id,
+                d,
+                schuljahr.id
+            );
+            
+            moeglicheStunden += eintraege.length;
+        }
 
         // 2. Finde den passenden Kurs (falls vorhanden)
         const kurs = this.plugin.data.kurse.find(k => k.bildungsgangId === klasse.bildungsgangId && k.fachId === fach.id);
