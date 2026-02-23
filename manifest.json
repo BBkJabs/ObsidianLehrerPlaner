@@ -1,0 +1,10 @@
+{
+	"id": "obsidian-lehrerplaner",
+	"name": "Lehrerplaner",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "Ein Unterrichtsinhalte-Planer für den Unterricht an einem Berufskolleg in NRW.",
+	"author": "Mirco Jabs",
+	"authorUrl": "https://github.com/BBkJabs",
+	"isDesktopOnly": false
+}
