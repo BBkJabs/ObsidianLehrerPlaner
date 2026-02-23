@@ -375,13 +375,20 @@ export class LehrerplanerSettingTab extends PluginSettingTab {
                     }));
 
             new Setting(bDiv)
-                .setName('Farbe (Hex)')
-                .addText(text => text
-                    .setValue(b.farbe)
-                    .onChange(async (value) => {
-                        b.farbe = value;
-                        await this.plugin.storageService.saveData(this.plugin.data);
-                    }));
+                .setName('Farbe')
+                .addText(text => {
+                    text.inputEl.type = 'color';
+                    text.inputEl.style.padding = '0';
+                    text.inputEl.style.width = '50px';
+                    text.inputEl.style.height = '30px';
+                    text.inputEl.style.cursor = 'pointer';
+                    return text
+                        .setValue(b.farbe)
+                        .onChange(async (value) => {
+                            b.farbe = value;
+                            await this.plugin.storageService.saveData(this.plugin.data);
+                        });
+                });
 
             new Setting(bDiv)
                 .addButton(button => button
