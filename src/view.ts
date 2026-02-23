@@ -32,6 +32,9 @@ export class LehrerplanerView extends ItemView {
         
         const statsDiv = contentDiv.createDiv('lehrerplaner-stats');
         statsDiv.createEl('p', { text: `Anzahl Schuljahre: ${this.plugin.data.schuljahre.length}` });
+        statsDiv.createEl('p', { text: `Anzahl Ferien: ${this.plugin.data.ferien.length}` });
+        statsDiv.createEl('p', { text: `Anzahl Feiertage: ${this.plugin.data.feiertage.length}` });
+        statsDiv.createEl('p', { text: `Anzahl Bildungsgänge: ${this.plugin.data.bildungsgaenge.length}` });
         statsDiv.createEl('p', { text: `Anzahl Klassen: ${this.plugin.data.klassen.length}` });
         statsDiv.createEl('p', { text: `Anzahl Kurse: ${this.plugin.data.kurse.length}` });
         
