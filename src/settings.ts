@@ -106,6 +106,39 @@ export class LehrerplanerSettingTab extends PluginSettingTab {
                         this.plugin.data.feiertage.push(neuerFeiertag);
                         await this.plugin.storageService.saveData(this.plugin.data);
                         this.renderFeiertage(feiertageContainer);
+                    }))
+                .addButton(button => button
+                    .setButtonText('Fixe NRW-Feiertage (aktuelles Jahr) hinzufügen')
+                    .onClick(async () => {
+                        const year = new Date().getFullYear();
+                        const fixeFeiertage = [
+                            { name: 'Neujahr', date: `${year}-01-01` },
+                            { name: 'Tag der Arbeit', date: `${year}-05-01` },
+                            { name: 'Tag der Deutschen Einheit', date: `${year}-10-03` },
+                            { name: 'Allerheiligen', date: `${year}-11-01` },
+                            { name: '1. Weihnachtstag', date: `${year}-12-25` },
+                            { name: '2. Weihnachtstag', date: `${year}-12-26` }
+                        ];
+                        
+                        let added = false;
+                        for (const ft of fixeFeiertage) {
+                            // Nur hinzufügen, wenn an diesem Datum noch kein Feiertag existiert
+                            if (!this.plugin.data.feiertage.some(f => f.datum === ft.date)) {
+                                this.plugin.data.feiertage.push({
+                                    id: this.generateId(),
+                                    name: ft.name,
+                                    datum: ft.date
+                                });
+                                added = true;
+                            }
+                        }
+                        
+                        if (added) {
+                            // Sortieren nach Datum
+                            this.plugin.data.feiertage.sort((a, b) => a.datum.localeCompare(b.datum));
+                            await this.plugin.storageService.saveData(this.plugin.data);
+                            this.renderFeiertage(feiertageContainer);
+                        }
                     }));
         } else if (this.activeTab === 'Bildungsgänge') {
             const bildungsgaengeContainer = contentContainer.createDiv('bildungsgaenge-container');
@@ -154,30 +187,39 @@ export class LehrerplanerSettingTab extends PluginSettingTab {
 
             new Setting(sjDiv)
                 .setName('Startdatum')
-                .addText(text => text
-                    .setValue(sj.startDatum)
-                    .onChange(async (value) => {
-                        sj.startDatum = value;
-                        await this.plugin.storageService.saveData(this.plugin.data);
-                    }));
+                .addText(text => {
+                    text.inputEl.type = 'date';
+                    return text
+                        .setValue(sj.startDatum)
+                        .onChange(async (value) => {
+                            sj.startDatum = value;
+                            await this.plugin.storageService.saveData(this.plugin.data);
+                        });
+                });
 
             new Setting(sjDiv)
                 .setName('Enddatum')
-                .addText(text => text
-                    .setValue(sj.endDatum)
-                    .onChange(async (value) => {
-                        sj.endDatum = value;
-                        await this.plugin.storageService.saveData(this.plugin.data);
-                    }));
+                .addText(text => {
+                    text.inputEl.type = 'date';
+                    return text
+                        .setValue(sj.endDatum)
+                        .onChange(async (value) => {
+                            sj.endDatum = value;
+                            await this.plugin.storageService.saveData(this.plugin.data);
+                        });
+                });
 
             new Setting(sjDiv)
                 .setName('Halbjahreswechsel')
-                .addText(text => text
-                    .setValue(sj.halbjahresWechsel)
-                    .onChange(async (value) => {
-                        sj.halbjahresWechsel = value;
-                        await this.plugin.storageService.saveData(this.plugin.data);
-                    }));
+                .addText(text => {
+                    text.inputEl.type = 'date';
+                    return text
+                        .setValue(sj.halbjahresWechsel)
+                        .onChange(async (value) => {
+                            sj.halbjahresWechsel = value;
+                            await this.plugin.storageService.saveData(this.plugin.data);
+                        });
+                });
 
             new Setting(sjDiv)
                 .addButton(button => button
@@ -217,21 +259,27 @@ export class LehrerplanerSettingTab extends PluginSettingTab {
 
             new Setting(fDiv)
                 .setName('Startdatum')
-                .addText(text => text
-                    .setValue(f.startDatum)
-                    .onChange(async (value) => {
-                        f.startDatum = value;
-                        await this.plugin.storageService.saveData(this.plugin.data);
-                    }));
+                .addText(text => {
+                    text.inputEl.type = 'date';
+                    return text
+                        .setValue(f.startDatum)
+                        .onChange(async (value) => {
+                            f.startDatum = value;
+                            await this.plugin.storageService.saveData(this.plugin.data);
+                        });
+                });
 
             new Setting(fDiv)
                 .setName('Enddatum')
-                .addText(text => text
-                    .setValue(f.endDatum)
-                    .onChange(async (value) => {
-                        f.endDatum = value;
-                        await this.plugin.storageService.saveData(this.plugin.data);
-                    }));
+                .addText(text => {
+                    text.inputEl.type = 'date';
+                    return text
+                        .setValue(f.endDatum)
+                        .onChange(async (value) => {
+                            f.endDatum = value;
+                            await this.plugin.storageService.saveData(this.plugin.data);
+                        });
+                });
 
             new Setting(fDiv)
                 .addButton(button => button
@@ -271,12 +319,15 @@ export class LehrerplanerSettingTab extends PluginSettingTab {
 
             new Setting(fDiv)
                 .setName('Datum')
-                .addText(text => text
-                    .setValue(f.datum)
-                    .onChange(async (value) => {
-                        f.datum = value;
-                        await this.plugin.storageService.saveData(this.plugin.data);
-                    }));
+                .addText(text => {
+                    text.inputEl.type = 'date';
+                    return text
+                        .setValue(f.datum)
+                        .onChange(async (value) => {
+                            f.datum = value;
+                            await this.plugin.storageService.saveData(this.plugin.data);
+                        });
+                });
 
             new Setting(fDiv)
                 .addButton(button => button
