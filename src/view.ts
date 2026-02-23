@@ -186,7 +186,132 @@ export class LehrerplanerView extends ItemView {
 
     private renderUnterrichtsplanung(container: HTMLElement) {
         container.createEl('h3', { text: 'Unterrichtsplanung & Diff-View' });
-        container.createEl('p', { text: 'Hier wird in Kürze die komplexe Ansicht zur Unterrichtsplanung (Geplante vs. Mögliche Stunden) implementiert.' });
+        
+        if (this.plugin.data.schuljahre.length === 0 || this.plugin.data.klassen.length === 0 || this.plugin.data.faecher.length === 0) {
+            container.createEl('p', { text: 'Bitte lege zuerst Schuljahre, Klassen und Fächer an.' });
+            return;
+        }
+
+        // Auswahlbereich für Schuljahr, Klasse und Fach
+        const filterDiv = container.createDiv('lehrerplaner-filter');
+        filterDiv.style.display = 'flex';
+        filterDiv.style.gap = '10px';
+        filterDiv.style.marginBottom = '20px';
+        filterDiv.style.alignItems = 'center';
+
+        // Schuljahr Dropdown
+        const sjSelect = filterDiv.createEl('select');
+        this.plugin.data.schuljahre.forEach(sj => {
+            sjSelect.createEl('option', { value: sj.id, text: sj.name });
+        });
+
+        // Klasse Dropdown
+        const klasseSelect = filterDiv.createEl('select');
+        this.plugin.data.klassen.forEach(k => {
+            klasseSelect.createEl('option', { value: k.id, text: k.name });
+        });
+
+        // Fach Dropdown
+        const fachSelect = filterDiv.createEl('select');
+        this.plugin.data.faecher.forEach(f => {
+            fachSelect.createEl('option', { value: f.id, text: f.langName });
+        });
+
+        const loadBtn = filterDiv.createEl('button', { text: 'Laden' });
+        
+        const diffContainer = container.createDiv('lehrerplaner-diff-container');
+
+        loadBtn.addEventListener('click', () => {
+            this.renderDiffView(
+                diffContainer, 
+                sjSelect.value, 
+                klasseSelect.value, 
+                fachSelect.value
+            );
+        });
+    }
+
+    private renderDiffView(container: HTMLElement, schuljahrId: string, klasseId: string, fachId: string) {
+        container.empty();
+        
+        const schuljahr = this.plugin.data.schuljahre.find(sj => sj.id === schuljahrId);
+        const klasse = this.plugin.data.klassen.find(k => k.id === klasseId);
+        const fach = this.plugin.data.faecher.find(f => f.id === fachId);
+
+        if (!schuljahr || !klasse || !fach) return;
+
+        container.createEl('h4', { text: `Planung für ${klasse.name} in ${fach.kurzName} (${schuljahr.name})` });
+
+        // 1. Berechne mögliche Stunden (vereinfacht: 2 Stunden pro Schulwoche als Dummy-Annahme, 
+        // da der echte Stundenplan noch nicht implementiert ist)
+        // In einer echten Implementierung würde hier der KalenderService und UnterrichtsService genutzt werden
+        const wochen = 40; // Ca. 40 Schulwochen pro Jahr
+        const stundenProWoche = 2; // Dummy-Wert
+        const moeglicheStunden = wochen * stundenProWoche;
+
+        // 2. Finde den passenden Kurs (falls vorhanden)
+        const kurs = this.plugin.data.kurse.find(k => k.bildungsgangId === klasse.bildungsgangId && k.fachId === fach.id);
+        
+        // 3. Berechne geplante Stunden aus Unterrichtseinheiten
+        let geplanteStunden = 0;
+        let einheiten: any[] = [];
+        
+        if (kurs) {
+            einheiten = this.plugin.data.unterrichtseinheiten.filter(ue => ue.kursId === kurs.id);
+            geplanteStunden = einheiten.reduce((sum, ue) => sum + ue.dauerInStunden, 0);
+        }
+
+        // Diff-Anzeige
+        const diffDiv = container.createDiv('lehrerplaner-diff-stats');
+        diffDiv.style.display = 'flex';
+        diffDiv.style.gap = '20px';
+        diffDiv.style.padding = '15px';
+        diffDiv.style.backgroundColor = 'var(--background-secondary)';
+        diffDiv.style.borderRadius = '8px';
+        diffDiv.style.marginBottom = '20px';
+
+        const diff = moeglicheStunden - geplanteStunden;
+        const diffColor = diff < 0 ? 'var(--text-error)' : (diff > 0 ? 'var(--text-warning)' : 'var(--text-success)');
+
+        diffDiv.createDiv().innerHTML = `<strong>Mögliche Stunden:</strong> <br><span style="font-size: 1.5em">${moeglicheStunden}</span>`;
+        diffDiv.createDiv().innerHTML = `<strong>Geplante Stunden:</strong> <br><span style="font-size: 1.5em">${geplanteStunden}</span>`;
+        diffDiv.createDiv().innerHTML = `<strong>Differenz:</strong> <br><span style="font-size: 1.5em; color: ${diffColor}">${diff > 0 ? '+' : ''}${diff}</span>`;
+
+        // Liste der Unterrichtseinheiten
+        container.createEl('h5', { text: 'Unterrichtseinheiten' });
+        
+        if (!kurs) {
+            container.createEl('p', { text: 'Für diese Kombination aus Bildungsgang und Fach existiert noch kein Kurs. Bitte lege zuerst einen Kurs an.' });
+            return;
+        }
+
+        if (einheiten.length === 0) {
+            container.createEl('p', { text: 'Noch keine Unterrichtseinheiten für diesen Kurs geplant.' });
+        } else {
+            const list = container.createEl('ul');
+            einheiten.sort((a, b) => a.reihenfolge - b.reihenfolge).forEach(ue => {
+                const li = list.createEl('li');
+                li.style.marginBottom = '10px';
+                li.innerHTML = `<strong>${ue.titel}</strong> (${ue.dauerInStunden} Stunden)<br><small>${ue.beschreibung}</small>`;
+            });
+        }
+
+        // Button zum Hinzufügen einer neuen Einheit
+        const addBtn = container.createEl('button', { text: '+ Neue Unterrichtseinheit' });
+        addBtn.style.marginTop = '10px';
+        addBtn.addEventListener('click', async () => {
+            const neueEinheit = {
+                id: Math.random().toString(36).substring(2, 15),
+                kursId: kurs.id,
+                titel: 'Neue Einheit',
+                beschreibung: 'Beschreibung hier einfügen...',
+                dauerInStunden: 2,
+                reihenfolge: einheiten.length + 1
+            };
+            this.plugin.data.unterrichtseinheiten.push(neueEinheit);
+            await this.plugin.storageService.saveData(this.plugin.data);
+            this.renderDiffView(container, schuljahrId, klasseId, fachId); // Neu rendern
+        });
     }
 
     async onClose() {
