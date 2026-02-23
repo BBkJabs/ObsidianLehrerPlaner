@@ -65,6 +65,53 @@ export class LehrerplanerView extends ItemView {
     }
 
     private renderUebersicht(container: HTMLElement) {
+        container.createEl('h3', { text: 'Unterrichts-Listenansicht' });
+
+        if (this.plugin.data.schuljahre.length === 0 || this.plugin.data.klassen.length === 0 || this.plugin.data.faecher.length === 0) {
+            container.createEl('p', { text: 'Bitte lege zuerst Schuljahre, Klassen und Fächer an.' });
+            return;
+        }
+
+        // Auswahlbereich für Schuljahr, Klasse und Fach
+        const filterDiv = container.createDiv('lehrerplaner-filter');
+        filterDiv.style.display = 'flex';
+        filterDiv.style.gap = '10px';
+        filterDiv.style.marginBottom = '20px';
+        filterDiv.style.alignItems = 'center';
+
+        // Schuljahr Dropdown
+        const sjSelect = filterDiv.createEl('select');
+        this.plugin.data.schuljahre.forEach(sj => {
+            sjSelect.createEl('option', { value: sj.id, text: sj.name });
+        });
+
+        // Klasse Dropdown
+        const klasseSelect = filterDiv.createEl('select');
+        this.plugin.data.klassen.forEach(k => {
+            klasseSelect.createEl('option', { value: k.id, text: k.name });
+        });
+
+        // Fach Dropdown
+        const fachSelect = filterDiv.createEl('select');
+        this.plugin.data.faecher.forEach(f => {
+            fachSelect.createEl('option', { value: f.id, text: f.langName });
+        });
+
+        const loadBtn = filterDiv.createEl('button', { text: 'Laden' });
+        
+        const listContainer = container.createDiv('lehrerplaner-list-container');
+
+        loadBtn.addEventListener('click', () => {
+            this.renderListenansicht(
+                listContainer, 
+                sjSelect.value, 
+                klasseSelect.value, 
+                fachSelect.value
+            );
+        });
+
+        container.createEl('hr');
+
         const statsDiv = container.createDiv('lehrerplaner-stats');
         statsDiv.createEl('h3', { text: 'Statistiken' });
         statsDiv.createEl('p', { text: `Anzahl Schuljahre: ${this.plugin.data.schuljahre.length}` });
@@ -81,6 +128,88 @@ export class LehrerplanerView extends ItemView {
         btn.addEventListener('click', async () => {
             this.plugin.data = await this.plugin.storageService.loadData();
             this.onOpen(); // View neu rendern
+        });
+    }
+
+    private renderListenansicht(container: HTMLElement, schuljahrId: string, klasseId: string, fachId: string) {
+        container.empty();
+        
+        const schuljahr = this.plugin.data.schuljahre.find(sj => sj.id === schuljahrId);
+        const klasse = this.plugin.data.klassen.find(k => k.id === klasseId);
+        const fach = this.plugin.data.faecher.find(f => f.id === fachId);
+
+        if (!schuljahr || !klasse || !fach) return;
+
+        container.createEl('h4', { text: `Listenansicht für ${klasse.name} in ${fach.kurzName} (${schuljahr.name})` });
+
+        const kalenderService = new KalenderService(
+            this.plugin.data.schuljahre,
+            this.plugin.data.ferien,
+            this.plugin.data.feiertage
+        );
+        
+        const unterrichtsService = new UnterrichtsService(
+            this.plugin.data.stundenplaene,
+            this.plugin.data.unterrichtseinheiten,
+            this.plugin.data.geplanteEinheiten,
+            kalenderService
+        );
+
+        const kurs = this.plugin.data.kurse.find(k => k.bildungsgangId === klasse.bildungsgangId && k.fachId === fach.id);
+        
+        if (!kurs) {
+            container.createEl('p', { text: 'Für diese Kombination aus Bildungsgang und Fach existiert noch kein Kurs. Bitte lege zuerst einen Kurs an.' });
+            return;
+        }
+
+        // Führe die automatische Planung durch (verteilt die Einheiten auf die Kalendertage)
+        const startDatum = new Date(schuljahr.startDatum);
+        const geplanteEinheiten = unterrichtsService.automatischPlanen(kurs.id, klasse.id, schuljahr, startDatum);
+
+        if (geplanteEinheiten.length === 0) {
+            container.createEl('p', { text: 'Es konnten keine Stunden geplant werden. Bitte prüfe, ob Unterrichtseinheiten für diesen Kurs existieren und ob ein gültiger Stundenplan für dieses Schuljahr vorliegt.' });
+            return;
+        }
+
+        const table = container.createEl('table');
+        table.style.width = '100%';
+        table.style.borderCollapse = 'collapse';
+        table.style.marginTop = '20px';
+        
+        const thead = table.createEl('thead');
+        const trHead = thead.createEl('tr');
+        trHead.createEl('th', { text: 'Datum' }).style.borderBottom = '2px solid var(--background-modifier-border)';
+        trHead.createEl('th', { text: 'Stunde' }).style.borderBottom = '2px solid var(--background-modifier-border)';
+        trHead.createEl('th', { text: 'Thema' }).style.borderBottom = '2px solid var(--background-modifier-border)';
+        trHead.createEl('th', { text: 'Notizen' }).style.borderBottom = '2px solid var(--background-modifier-border)';
+
+        const tbody = table.createEl('tbody');
+        
+        geplanteEinheiten.forEach(ge => {
+            const ue = this.plugin.data.unterrichtseinheiten.find(u => u.id === ge.unterrichtseinheitId);
+            if (!ue) return;
+
+            const tr = tbody.createEl('tr');
+            
+            // Datum formatieren (z.B. "Mo, 23.02.2026")
+            const dateObj = new Date(ge.datum);
+            const dateOptions: Intl.DateTimeFormatOptions = { weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit' };
+            const dateStr = dateObj.toLocaleDateString('de-DE', dateOptions);
+
+            tr.createEl('td', { text: dateStr }).style.borderBottom = '1px solid var(--background-modifier-border)';
+            tr.createEl('td', { text: `${ge.stunde}.` }).style.borderBottom = '1px solid var(--background-modifier-border)';
+            tr.createEl('td', { text: ue.titel }).style.borderBottom = '1px solid var(--background-modifier-border)';
+            
+            const notesTd = tr.createEl('td');
+            notesTd.style.borderBottom = '1px solid var(--background-modifier-border)';
+            const notesInput = notesTd.createEl('input', { type: 'text', value: ue.beschreibung });
+            notesInput.style.width = '100%';
+            notesInput.style.border = 'none';
+            notesInput.style.backgroundColor = 'transparent';
+            notesInput.addEventListener('change', async (e) => {
+                ue.beschreibung = (e.target as HTMLInputElement).value;
+                await this.plugin.storageService.saveData(this.plugin.data);
+            });
         });
     }
 
