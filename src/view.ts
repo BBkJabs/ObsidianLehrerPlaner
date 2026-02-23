@@ -96,16 +96,45 @@ export class LehrerplanerView extends ItemView {
                 kDiv.style.marginBottom = '10px';
                 kDiv.style.borderRadius = '5px';
                 kDiv.style.display = 'flex';
-                kDiv.style.justifyContent = 'space-between';
-                kDiv.style.alignItems = 'center';
+                kDiv.style.flexDirection = 'column';
+                kDiv.style.gap = '10px';
 
-                const infoDiv = kDiv.createDiv();
-                infoDiv.createEl('strong', { text: klasse.name });
-                const bg = this.plugin.data.bildungsgaenge.find(b => b.id === klasse.bildungsgangId);
-                infoDiv.createEl('span', { text: ` (Jahrgang: ${klasse.jahrgang}, Bildungsgang: ${bg ? bg.kurzName : 'Unbekannt'})` });
+                const editDiv = kDiv.createDiv();
+                editDiv.style.display = 'flex';
+                editDiv.style.gap = '10px';
+                editDiv.style.alignItems = 'center';
+                editDiv.style.flexWrap = 'wrap';
 
-                const btn = kDiv.createEl('button', { text: 'Löschen' });
+                // Name Input
+                const nameInput = editDiv.createEl('input', { type: 'text', value: klasse.name });
+                nameInput.placeholder = 'Klassenname (z.B. 24-hbfi)';
+                nameInput.addEventListener('change', async (e) => {
+                    klasse.name = (e.target as HTMLInputElement).value;
+                    await this.plugin.storageService.saveData(this.plugin.data);
+                });
+
+                // Jahrgang Input
+                const jahrgangInput = editDiv.createEl('input', { type: 'number', value: klasse.jahrgang.toString() });
+                jahrgangInput.style.width = '60px';
+                jahrgangInput.addEventListener('change', async (e) => {
+                    klasse.jahrgang = parseInt((e.target as HTMLInputElement).value);
+                    await this.plugin.storageService.saveData(this.plugin.data);
+                });
+
+                // Bildungsgang Select
+                const bgSelect = editDiv.createEl('select');
+                this.plugin.data.bildungsgaenge.forEach(bg => {
+                    const option = bgSelect.createEl('option', { value: bg.id, text: bg.kurzName });
+                    if (bg.id === klasse.bildungsgangId) option.selected = true;
+                });
+                bgSelect.addEventListener('change', async (e) => {
+                    klasse.bildungsgangId = (e.target as HTMLSelectElement).value;
+                    await this.plugin.storageService.saveData(this.plugin.data);
+                });
+
+                const btn = editDiv.createEl('button', { text: 'Löschen' });
                 btn.style.backgroundColor = 'var(--background-modifier-error)';
+                btn.style.marginLeft = 'auto';
                 btn.addEventListener('click', async () => {
                     this.plugin.data.klassen.splice(index, 1);
                     await this.plugin.storageService.saveData(this.plugin.data);
@@ -122,11 +151,13 @@ export class LehrerplanerView extends ItemView {
                         alert('Bitte lege zuerst einen Bildungsgang in den Einstellungen an.');
                         return;
                     }
+                    const jahrgang = new Date().getFullYear() % 100;
+                    const bg = this.plugin.data.bildungsgaenge[0];
                     const neueKlasse = {
                         id: Math.random().toString(36).substring(2, 15),
-                        name: 'Neue Klasse',
-                        jahrgang: new Date().getFullYear() % 100,
-                        bildungsgangId: this.plugin.data.bildungsgaenge[0].id
+                        name: `${jahrgang}-${bg.kurzName}`,
+                        jahrgang: jahrgang,
+                        bildungsgangId: bg.id
                     };
                     this.plugin.data.klassen.push(neueKlasse);
                     await this.plugin.storageService.saveData(this.plugin.data);
@@ -147,15 +178,27 @@ export class LehrerplanerView extends ItemView {
                 fDiv.style.marginBottom = '10px';
                 fDiv.style.borderRadius = '5px';
                 fDiv.style.display = 'flex';
-                fDiv.style.justifyContent = 'space-between';
+                fDiv.style.gap = '10px';
                 fDiv.style.alignItems = 'center';
 
-                const infoDiv = fDiv.createDiv();
-                infoDiv.createEl('strong', { text: fach.langName });
-                infoDiv.createEl('span', { text: ` (${fach.kurzName})` });
+                const langNameInput = fDiv.createEl('input', { type: 'text', value: fach.langName });
+                langNameInput.placeholder = 'Langname (z.B. Software)';
+                langNameInput.addEventListener('change', async (e) => {
+                    fach.langName = (e.target as HTMLInputElement).value;
+                    await this.plugin.storageService.saveData(this.plugin.data);
+                });
+
+                const kurzNameInput = fDiv.createEl('input', { type: 'text', value: fach.kurzName });
+                kurzNameInput.placeholder = 'Kurzname (z.B. sow)';
+                kurzNameInput.style.width = '80px';
+                kurzNameInput.addEventListener('change', async (e) => {
+                    fach.kurzName = (e.target as HTMLInputElement).value;
+                    await this.plugin.storageService.saveData(this.plugin.data);
+                });
 
                 const btn = fDiv.createEl('button', { text: 'Löschen' });
                 btn.style.backgroundColor = 'var(--background-modifier-error)';
+                btn.style.marginLeft = 'auto';
                 btn.addEventListener('click', async () => {
                     this.plugin.data.faecher.splice(index, 1);
                     await this.plugin.storageService.saveData(this.plugin.data);
