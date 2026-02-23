@@ -47,6 +47,65 @@ export class LehrerplanerSettingTab extends PluginSettingTab {
                     await this.plugin.storageService.saveData(this.plugin.data);
                     this.renderSchuljahre(schuljahreContainer);
                 }));
+
+        containerEl.createEl('h3', { text: 'Ferien' });
+        
+        const ferienContainer = containerEl.createDiv('ferien-container');
+        this.renderFerien(ferienContainer);
+
+        new Setting(containerEl)
+            .addButton(button => button
+                .setButtonText('Neue Ferien hinzufügen')
+                .onClick(async () => {
+                    const neueFerien = {
+                        id: this.generateId(),
+                        name: 'Neue Ferien',
+                        startDatum: new Date().toISOString().split('T')[0],
+                        endDatum: new Date(new Date().setDate(new Date().getDate() + 14)).toISOString().split('T')[0]
+                    };
+                    this.plugin.data.ferien.push(neueFerien);
+                    await this.plugin.storageService.saveData(this.plugin.data);
+                    this.renderFerien(ferienContainer);
+                }));
+
+        containerEl.createEl('h3', { text: 'Feiertage' });
+        
+        const feiertageContainer = containerEl.createDiv('feiertage-container');
+        this.renderFeiertage(feiertageContainer);
+
+        new Setting(containerEl)
+            .addButton(button => button
+                .setButtonText('Neuen Feiertag hinzufügen')
+                .onClick(async () => {
+                    const neuerFeiertag = {
+                        id: this.generateId(),
+                        name: 'Neuer Feiertag',
+                        datum: new Date().toISOString().split('T')[0]
+                    };
+                    this.plugin.data.feiertage.push(neuerFeiertag);
+                    await this.plugin.storageService.saveData(this.plugin.data);
+                    this.renderFeiertage(feiertageContainer);
+                }));
+
+        containerEl.createEl('h3', { text: 'Bildungsgänge' });
+        
+        const bildungsgaengeContainer = containerEl.createDiv('bildungsgaenge-container');
+        this.renderBildungsgaenge(bildungsgaengeContainer);
+
+        new Setting(containerEl)
+            .addButton(button => button
+                .setButtonText('Neuen Bildungsgang hinzufügen')
+                .onClick(async () => {
+                    const neuerBildungsgang = {
+                        id: this.generateId(),
+                        langName: 'Neuer Bildungsgang',
+                        kurzName: 'neu',
+                        farbe: '#cccccc'
+                    };
+                    this.plugin.data.bildungsgaenge.push(neuerBildungsgang);
+                    await this.plugin.storageService.saveData(this.plugin.data);
+                    this.renderBildungsgaenge(bildungsgaengeContainer);
+                }));
     }
 
     private renderSchuljahre(container: HTMLElement) {
@@ -108,6 +167,159 @@ export class LehrerplanerSettingTab extends PluginSettingTab {
                         this.plugin.data.schuljahre.splice(index, 1);
                         await this.plugin.storageService.saveData(this.plugin.data);
                         this.renderSchuljahre(container);
+                    }));
+        });
+    }
+
+    private renderFerien(container: HTMLElement) {
+        container.empty();
+        
+        if (this.plugin.data.ferien.length === 0) {
+            container.createEl('p', { text: 'Noch keine Ferien angelegt.' });
+            return;
+        }
+
+        this.plugin.data.ferien.forEach((f, index) => {
+            const fDiv = container.createDiv('ferien-item');
+            fDiv.style.border = '1px solid var(--background-modifier-border)';
+            fDiv.style.padding = '10px';
+            fDiv.style.marginBottom = '10px';
+            fDiv.style.borderRadius = '5px';
+
+            new Setting(fDiv)
+                .setName('Name')
+                .addText(text => text
+                    .setValue(f.name)
+                    .onChange(async (value) => {
+                        f.name = value;
+                        await this.plugin.storageService.saveData(this.plugin.data);
+                    }));
+
+            new Setting(fDiv)
+                .setName('Startdatum')
+                .addText(text => text
+                    .setValue(f.startDatum)
+                    .onChange(async (value) => {
+                        f.startDatum = value;
+                        await this.plugin.storageService.saveData(this.plugin.data);
+                    }));
+
+            new Setting(fDiv)
+                .setName('Enddatum')
+                .addText(text => text
+                    .setValue(f.endDatum)
+                    .onChange(async (value) => {
+                        f.endDatum = value;
+                        await this.plugin.storageService.saveData(this.plugin.data);
+                    }));
+
+            new Setting(fDiv)
+                .addButton(button => button
+                    .setButtonText('Löschen')
+                    .setWarning()
+                    .onClick(async () => {
+                        this.plugin.data.ferien.splice(index, 1);
+                        await this.plugin.storageService.saveData(this.plugin.data);
+                        this.renderFerien(container);
+                    }));
+        });
+    }
+
+    private renderFeiertage(container: HTMLElement) {
+        container.empty();
+        
+        if (this.plugin.data.feiertage.length === 0) {
+            container.createEl('p', { text: 'Noch keine Feiertage angelegt.' });
+            return;
+        }
+
+        this.plugin.data.feiertage.forEach((f, index) => {
+            const fDiv = container.createDiv('feiertage-item');
+            fDiv.style.border = '1px solid var(--background-modifier-border)';
+            fDiv.style.padding = '10px';
+            fDiv.style.marginBottom = '10px';
+            fDiv.style.borderRadius = '5px';
+
+            new Setting(fDiv)
+                .setName('Name')
+                .addText(text => text
+                    .setValue(f.name)
+                    .onChange(async (value) => {
+                        f.name = value;
+                        await this.plugin.storageService.saveData(this.plugin.data);
+                    }));
+
+            new Setting(fDiv)
+                .setName('Datum')
+                .addText(text => text
+                    .setValue(f.datum)
+                    .onChange(async (value) => {
+                        f.datum = value;
+                        await this.plugin.storageService.saveData(this.plugin.data);
+                    }));
+
+            new Setting(fDiv)
+                .addButton(button => button
+                    .setButtonText('Löschen')
+                    .setWarning()
+                    .onClick(async () => {
+                        this.plugin.data.feiertage.splice(index, 1);
+                        await this.plugin.storageService.saveData(this.plugin.data);
+                        this.renderFeiertage(container);
+                    }));
+        });
+    }
+
+    private renderBildungsgaenge(container: HTMLElement) {
+        container.empty();
+        
+        if (this.plugin.data.bildungsgaenge.length === 0) {
+            container.createEl('p', { text: 'Noch keine Bildungsgänge angelegt.' });
+            return;
+        }
+
+        this.plugin.data.bildungsgaenge.forEach((b, index) => {
+            const bDiv = container.createDiv('bildungsgaenge-item');
+            bDiv.style.border = '1px solid var(--background-modifier-border)';
+            bDiv.style.padding = '10px';
+            bDiv.style.marginBottom = '10px';
+            bDiv.style.borderRadius = '5px';
+
+            new Setting(bDiv)
+                .setName('Langname')
+                .addText(text => text
+                    .setValue(b.langName)
+                    .onChange(async (value) => {
+                        b.langName = value;
+                        await this.plugin.storageService.saveData(this.plugin.data);
+                    }));
+
+            new Setting(bDiv)
+                .setName('Kurzname')
+                .addText(text => text
+                    .setValue(b.kurzName)
+                    .onChange(async (value) => {
+                        b.kurzName = value;
+                        await this.plugin.storageService.saveData(this.plugin.data);
+                    }));
+
+            new Setting(bDiv)
+                .setName('Farbe (Hex)')
+                .addText(text => text
+                    .setValue(b.farbe)
+                    .onChange(async (value) => {
+                        b.farbe = value;
+                        await this.plugin.storageService.saveData(this.plugin.data);
+                    }));
+
+            new Setting(bDiv)
+                .addButton(button => button
+                    .setButtonText('Löschen')
+                    .setWarning()
+                    .onClick(async () => {
+                        this.plugin.data.bildungsgaenge.splice(index, 1);
+                        await this.plugin.storageService.saveData(this.plugin.data);
+                        this.renderBildungsgaenge(container);
                     }));
         });
     }
