@@ -220,6 +220,108 @@ export class LehrerplanerView extends ItemView {
                     await this.plugin.storageService.saveData(this.plugin.data);
                     this.onOpen();
                 }));
+
+        container.createEl('hr');
+        container.createEl('h3', { text: 'Kurse' });
+        const kurseContainer = container.createDiv('kurse-container');
+        
+        if (this.plugin.data.kurse.length === 0) {
+            kurseContainer.createEl('p', { text: 'Noch keine Kurse angelegt.' });
+        } else {
+            this.plugin.data.kurse.forEach((kurs, index) => {
+                const kDiv = kurseContainer.createDiv('kurs-item');
+                kDiv.style.border = '1px solid var(--background-modifier-border)';
+                kDiv.style.padding = '10px';
+                kDiv.style.marginBottom = '10px';
+                kDiv.style.borderRadius = '5px';
+                kDiv.style.display = 'flex';
+                kDiv.style.flexDirection = 'column';
+                kDiv.style.gap = '10px';
+
+                const editDiv = kDiv.createDiv();
+                editDiv.style.display = 'flex';
+                editDiv.style.gap = '10px';
+                editDiv.style.alignItems = 'center';
+                editDiv.style.flexWrap = 'wrap';
+
+                // Name Input
+                const nameInput = editDiv.createEl('input', { type: 'text', value: kurs.name });
+                nameInput.placeholder = 'Kursname (z.B. hbfiu-sow)';
+                nameInput.addEventListener('change', async (e) => {
+                    kurs.name = (e.target as HTMLInputElement).value;
+                    await this.plugin.storageService.saveData(this.plugin.data);
+                });
+
+                // Bildungsgang Select
+                const bgSelect = editDiv.createEl('select');
+                this.plugin.data.bildungsgaenge.forEach(bg => {
+                    const option = bgSelect.createEl('option', { value: bg.id, text: bg.kurzName });
+                    if (bg.id === kurs.bildungsgangId) option.selected = true;
+                });
+                bgSelect.addEventListener('change', async (e) => {
+                    kurs.bildungsgangId = (e.target as HTMLSelectElement).value;
+                    await this.plugin.storageService.saveData(this.plugin.data);
+                });
+
+                // Stufe Select
+                const stufeSelect = editDiv.createEl('select');
+                const stufen = [
+                    { value: 'u', text: 'Unterstufe' },
+                    { value: 'm', text: 'Mittelstufe' },
+                    { value: 'o', text: 'Oberstufe' }
+                ];
+                stufen.forEach(s => {
+                    const option = stufeSelect.createEl('option', { value: s.value, text: s.text });
+                    if (s.value === kurs.stufenBezeichnung) option.selected = true;
+                });
+                stufeSelect.addEventListener('change', async (e) => {
+                    kurs.stufenBezeichnung = (e.target as HTMLSelectElement).value as 'u' | 'm' | 'o';
+                    await this.plugin.storageService.saveData(this.plugin.data);
+                });
+
+                // Fach Select
+                const fachSelect = editDiv.createEl('select');
+                this.plugin.data.faecher.forEach(f => {
+                    const option = fachSelect.createEl('option', { value: f.id, text: f.kurzName });
+                    if (f.id === kurs.fachId) option.selected = true;
+                });
+                fachSelect.addEventListener('change', async (e) => {
+                    kurs.fachId = (e.target as HTMLSelectElement).value;
+                    await this.plugin.storageService.saveData(this.plugin.data);
+                });
+
+                const btn = editDiv.createEl('button', { text: 'Löschen' });
+                btn.style.backgroundColor = 'var(--background-modifier-error)';
+                btn.style.marginLeft = 'auto';
+                btn.addEventListener('click', async () => {
+                    this.plugin.data.kurse.splice(index, 1);
+                    await this.plugin.storageService.saveData(this.plugin.data);
+                    this.onOpen();
+                });
+            });
+        }
+
+        new Setting(container)
+            .addButton(button => button
+                .setButtonText('Neuen Kurs hinzufügen')
+                .onClick(async () => {
+                    if (this.plugin.data.bildungsgaenge.length === 0 || this.plugin.data.faecher.length === 0) {
+                        alert('Bitte lege zuerst mindestens einen Bildungsgang und ein Fach an.');
+                        return;
+                    }
+                    const bg = this.plugin.data.bildungsgaenge[0];
+                    const fach = this.plugin.data.faecher[0];
+                    const neuerKurs = {
+                        id: Math.random().toString(36).substring(2, 15),
+                        bildungsgangId: bg.id,
+                        stufenBezeichnung: 'u' as 'u' | 'm' | 'o',
+                        fachId: fach.id,
+                        name: `${bg.kurzName}u-${fach.kurzName}`
+                    };
+                    this.plugin.data.kurse.push(neuerKurs);
+                    await this.plugin.storageService.saveData(this.plugin.data);
+                    this.onOpen();
+                }));
     }
 
     private renderStundenplan(container: HTMLElement) {
@@ -331,11 +433,75 @@ export class LehrerplanerView extends ItemView {
         if (einheiten.length === 0) {
             container.createEl('p', { text: 'Noch keine Unterrichtseinheiten für diesen Kurs geplant.' });
         } else {
-            const list = container.createEl('ul');
-            einheiten.sort((a, b) => a.reihenfolge - b.reihenfolge).forEach(ue => {
-                const li = list.createEl('li');
-                li.style.marginBottom = '10px';
-                li.innerHTML = `<strong>${ue.titel}</strong> (${ue.dauerInStunden} Stunden)<br><small>${ue.beschreibung}</small>`;
+            const list = container.createDiv('unterrichtseinheiten-liste');
+            einheiten.sort((a, b) => a.reihenfolge - b.reihenfolge).forEach((ue, index) => {
+                const ueDiv = list.createDiv('ue-item');
+                ueDiv.style.border = '1px solid var(--background-modifier-border)';
+                ueDiv.style.padding = '10px';
+                ueDiv.style.marginBottom = '10px';
+                ueDiv.style.borderRadius = '5px';
+                ueDiv.style.display = 'flex';
+                ueDiv.style.flexDirection = 'column';
+                ueDiv.style.gap = '10px';
+
+                const headerDiv = ueDiv.createDiv();
+                headerDiv.style.display = 'flex';
+                headerDiv.style.gap = '10px';
+                headerDiv.style.alignItems = 'center';
+
+                // Reihenfolge
+                const orderInput = headerDiv.createEl('input', { type: 'number', value: ue.reihenfolge.toString() });
+                orderInput.style.width = '50px';
+                orderInput.title = 'Reihenfolge';
+                orderInput.addEventListener('change', async (e) => {
+                    ue.reihenfolge = parseInt((e.target as HTMLInputElement).value);
+                    await this.plugin.storageService.saveData(this.plugin.data);
+                    this.renderDiffView(container, schuljahrId, klasseId, fachId);
+                });
+
+                // Titel
+                const titleInput = headerDiv.createEl('input', { type: 'text', value: ue.titel });
+                titleInput.style.flexGrow = '1';
+                titleInput.placeholder = 'Titel der Einheit';
+                titleInput.addEventListener('change', async (e) => {
+                    ue.titel = (e.target as HTMLInputElement).value;
+                    await this.plugin.storageService.saveData(this.plugin.data);
+                });
+
+                // Dauer
+                const dauerInput = headerDiv.createEl('input', { type: 'number', value: ue.dauerInStunden.toString() });
+                dauerInput.style.width = '60px';
+                dauerInput.title = 'Dauer in Stunden';
+                dauerInput.addEventListener('change', async (e) => {
+                    ue.dauerInStunden = parseInt((e.target as HTMLInputElement).value);
+                    await this.plugin.storageService.saveData(this.plugin.data);
+                    this.renderDiffView(container, schuljahrId, klasseId, fachId);
+                });
+                headerDiv.createEl('span', { text: 'Std.' });
+
+                // Löschen Button
+                const delBtn = headerDiv.createEl('button', { text: 'Löschen' });
+                delBtn.style.backgroundColor = 'var(--background-modifier-error)';
+                delBtn.addEventListener('click', async () => {
+                    const ueIndex = this.plugin.data.unterrichtseinheiten.findIndex(u => u.id === ue.id);
+                    if (ueIndex > -1) {
+                        this.plugin.data.unterrichtseinheiten.splice(ueIndex, 1);
+                        await this.plugin.storageService.saveData(this.plugin.data);
+                        this.renderDiffView(container, schuljahrId, klasseId, fachId);
+                    }
+                });
+
+                // Beschreibung
+                const descInput = ueDiv.createEl('textarea');
+                descInput.value = ue.beschreibung;
+                descInput.placeholder = 'Beschreibung / Notizen zur Einheit...';
+                descInput.style.width = '100%';
+                descInput.style.minHeight = '60px';
+                descInput.style.resize = 'vertical';
+                descInput.addEventListener('change', async (e) => {
+                    ue.beschreibung = (e.target as HTMLTextAreaElement).value;
+                    await this.plugin.storageService.saveData(this.plugin.data);
+                });
             });
         }
 
