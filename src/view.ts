@@ -326,7 +326,199 @@ export class LehrerplanerView extends ItemView {
 
     private renderStundenplan(container: HTMLElement) {
         container.createEl('h3', { text: 'Stundenplan' });
-        container.createEl('p', { text: 'Hier wird in Kürze die Stundenplan-Verwaltung implementiert.' });
+        
+        if (this.plugin.data.schuljahre.length === 0) {
+            container.createEl('p', { text: 'Bitte lege zuerst ein Schuljahr in den Einstellungen an.' });
+            return;
+        }
+
+        // Schuljahr Auswahl
+        const filterDiv = container.createDiv('stundenplan-filter');
+        filterDiv.style.marginBottom = '20px';
+        
+        const sjSelect = filterDiv.createEl('select');
+        this.plugin.data.schuljahre.forEach(sj => {
+            sjSelect.createEl('option', { value: sj.id, text: sj.name });
+        });
+
+        const planContainer = container.createDiv('stundenplan-container');
+
+        const renderPlan = () => {
+            planContainer.empty();
+            const schuljahrId = sjSelect.value;
+            
+            // Finde Stundenpläne für dieses Schuljahr
+            const plaene = this.plugin.data.stundenplaene.filter(sp => sp.schuljahrId === schuljahrId);
+            
+            if (plaene.length === 0) {
+                planContainer.createEl('p', { text: 'Noch kein Stundenplan für dieses Schuljahr angelegt.' });
+            } else {
+                plaene.forEach((plan, planIndex) => {
+                    const pDiv = planContainer.createDiv('stundenplan-item');
+                    pDiv.style.border = '1px solid var(--background-modifier-border)';
+                    pDiv.style.padding = '15px';
+                    pDiv.style.marginBottom = '20px';
+                    pDiv.style.borderRadius = '5px';
+
+                    const headerDiv = pDiv.createDiv();
+                    headerDiv.style.display = 'flex';
+                    headerDiv.style.justifyContent = 'space-between';
+                    headerDiv.style.alignItems = 'center';
+                    headerDiv.style.marginBottom = '15px';
+
+                    const dateDiv = headerDiv.createDiv();
+                    dateDiv.style.display = 'flex';
+                    dateDiv.style.gap = '10px';
+                    dateDiv.style.alignItems = 'center';
+
+                    dateDiv.createEl('span', { text: 'Gültig ab:' });
+                    const abInput = dateDiv.createEl('input', { type: 'date', value: plan.gueltigAb });
+                    abInput.addEventListener('change', async (e) => {
+                        plan.gueltigAb = (e.target as HTMLInputElement).value;
+                        await this.plugin.storageService.saveData(this.plugin.data);
+                    });
+
+                    dateDiv.createEl('span', { text: 'Gültig bis (optional):' });
+                    const bisInput = dateDiv.createEl('input', { type: 'date', value: plan.gueltigBis || '' });
+                    bisInput.addEventListener('change', async (e) => {
+                        plan.gueltigBis = (e.target as HTMLInputElement).value;
+                        await this.plugin.storageService.saveData(this.plugin.data);
+                    });
+
+                    const delBtn = headerDiv.createEl('button', { text: 'Plan löschen' });
+                    delBtn.style.backgroundColor = 'var(--background-modifier-error)';
+                    delBtn.addEventListener('click', async () => {
+                        const idx = this.plugin.data.stundenplaene.findIndex(p => p.id === plan.id);
+                        if (idx > -1) {
+                            this.plugin.data.stundenplaene.splice(idx, 1);
+                            await this.plugin.storageService.saveData(this.plugin.data);
+                            renderPlan();
+                        }
+                    });
+
+                    // Tabelle für den Stundenplan
+                    const table = pDiv.createEl('table');
+                    table.style.width = '100%';
+                    table.style.borderCollapse = 'collapse';
+                    
+                    const thead = table.createEl('thead');
+                    const trHead = thead.createEl('tr');
+                    trHead.createEl('th', { text: 'Stunde' }).style.border = '1px solid var(--background-modifier-border)';
+                    const wochentage = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
+                    wochentage.forEach(tag => {
+                        trHead.createEl('th', { text: tag }).style.border = '1px solid var(--background-modifier-border)';
+                    });
+
+                    const tbody = table.createEl('tbody');
+                    for (let stunde = 1; stunde <= 10; stunde++) {
+                        const tr = tbody.createEl('tr');
+                        tr.createEl('td', { text: `${stunde}.` }).style.border = '1px solid var(--background-modifier-border)';
+                        tr.style.textAlign = 'center';
+
+                        for (let tag = 1; tag <= 5; tag++) {
+                            const td = tr.createEl('td');
+                            td.style.border = '1px solid var(--background-modifier-border)';
+                            td.style.padding = '5px';
+                            td.style.verticalAlign = 'top';
+
+                            // Finde Einträge für diese Zelle
+                            const eintraege = plan.eintraege.filter(e => e.wochentag === tag && e.stunde === stunde);
+                            
+                            const cellDiv = td.createDiv();
+                            cellDiv.style.display = 'flex';
+                            cellDiv.style.flexDirection = 'column';
+                            cellDiv.style.gap = '5px';
+
+                            eintraege.forEach(eintrag => {
+                                const eDiv = cellDiv.createDiv();
+                                eDiv.style.backgroundColor = 'var(--background-secondary)';
+                                eDiv.style.padding = '5px';
+                                eDiv.style.borderRadius = '3px';
+                                eDiv.style.fontSize = '0.9em';
+                                eDiv.style.display = 'flex';
+                                eDiv.style.justifyContent = 'space-between';
+                                eDiv.style.alignItems = 'center';
+
+                                const klasse = this.plugin.data.klassen.find(k => k.id === eintrag.klasseId);
+                                const fach = this.plugin.data.faecher.find(f => f.id === eintrag.fachId);
+                                
+                                eDiv.createEl('span', { text: `${klasse ? klasse.name : '?'} - ${fach ? fach.kurzName : '?'}` });
+                                
+                                const delEintragBtn = eDiv.createEl('button', { text: 'x' });
+                                delEintragBtn.style.padding = '0 5px';
+                                delEintragBtn.style.backgroundColor = 'transparent';
+                                delEintragBtn.style.color = 'var(--text-error)';
+                                delEintragBtn.addEventListener('click', async () => {
+                                    const eIdx = plan.eintraege.findIndex(e => e.id === eintrag.id);
+                                    if (eIdx > -1) {
+                                        plan.eintraege.splice(eIdx, 1);
+                                        await this.plugin.storageService.saveData(this.plugin.data);
+                                        renderPlan();
+                                    }
+                                });
+                            });
+
+                            // Button zum Hinzufügen eines Eintrags
+                            const addEintragBtn = cellDiv.createEl('button', { text: '+' });
+                            addEintragBtn.style.padding = '2px 5px';
+                            addEintragBtn.style.marginTop = '5px';
+                            addEintragBtn.addEventListener('click', () => {
+                                // Einfacher Dialog zum Hinzufügen (in einer echten App besser als Modal)
+                                const addDiv = cellDiv.createDiv();
+                                addDiv.style.marginTop = '5px';
+                                addDiv.style.display = 'flex';
+                                addDiv.style.flexDirection = 'column';
+                                addDiv.style.gap = '5px';
+                                
+                                const kSelect = addDiv.createEl('select');
+                                this.plugin.data.klassen.forEach(k => kSelect.createEl('option', { value: k.id, text: k.name }));
+                                
+                                const fSelect = addDiv.createEl('select');
+                                this.plugin.data.faecher.forEach(f => fSelect.createEl('option', { value: f.id, text: f.kurzName }));
+                                
+                                const saveBtn = addDiv.createEl('button', { text: 'Speichern' });
+                                saveBtn.addEventListener('click', async () => {
+                                    if (kSelect.value && fSelect.value) {
+                                        plan.eintraege.push({
+                                            id: Math.random().toString(36).substring(2, 15),
+                                            klasseId: kSelect.value,
+                                            fachId: fSelect.value,
+                                            wochentag: tag,
+                                            stunde: stunde
+                                        });
+                                        await this.plugin.storageService.saveData(this.plugin.data);
+                                        renderPlan();
+                                    }
+                                });
+                                
+                                addEintragBtn.style.display = 'none';
+                            });
+                        }
+                    }
+                });
+            }
+
+            new Setting(planContainer)
+                .addButton(button => button
+                    .setButtonText('Neuen Stundenplan anlegen')
+                    .onClick(async () => {
+                        const sj = this.plugin.data.schuljahre.find(s => s.id === schuljahrId);
+                        if (!sj) return;
+                        
+                        const neuerPlan = {
+                            id: Math.random().toString(36).substring(2, 15),
+                            schuljahrId: schuljahrId,
+                            gueltigAb: sj.startDatum,
+                            eintraege: []
+                        };
+                        this.plugin.data.stundenplaene.push(neuerPlan);
+                        await this.plugin.storageService.saveData(this.plugin.data);
+                        renderPlan();
+                    }));
+        };
+
+        sjSelect.addEventListener('change', renderPlan);
+        renderPlan(); // Initiales Rendern
     }
 
     private renderUnterrichtsplanung(container: HTMLElement) {
